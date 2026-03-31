@@ -35,10 +35,22 @@ func main() {
 		log.Fatalf("failed to create sub filesystem: %v", err)
 	}
 
+	// Get the embedded prototype filesystem
+	prototypeFS, err := fs.Sub(backend.PrototypeFS, "prototype_dist")
+	if err != nil {
+		log.Fatalf("failed to create prototype sub filesystem: %v", err)
+	}
+
 	// Set up routes
 	mux := http.NewServeMux()
 	handler := api.NewHandler(s, frontendFS)
 	handler.RegisterRoutes(mux)
+
+	// Serve MVP prototype at /mvp
+	mux.Handle("/mvp/", http.StripPrefix("/mvp/", http.FileServerFS(prototypeFS)))
+	mux.HandleFunc("/mvp", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/mvp/", http.StatusMovedPermanently)
+	})
 
 	log.Printf("Civic server listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {

@@ -37,6 +37,8 @@ jobs:
         run: |
           rm -rf backend/frontend_dist
           cp -r frontend/dist backend/frontend_dist
+          rm -rf backend/prototype_dist
+          cp -r "prototype ui/Kiro-Demo" backend/prototype_dist
 
       - name: Build Go binary (linux/amd64)
         run: |

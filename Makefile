@@ -16,6 +16,8 @@ build:
 	cd frontend && npm run build
 	rm -rf backend/frontend_dist
 	cp -r frontend/dist backend/frontend_dist
+	rm -rf backend/prototype_dist
+	cp -r "prototype ui/Kiro-Demo" backend/prototype_dist
 	cd backend && CGO_ENABLED=1 go build -o civic-server ./cmd/server
 	@echo "Built: backend/civic-server"
 
