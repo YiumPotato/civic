@@ -1,20 +1,22 @@
 <script setup>
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="shell">
     <nav class="top-nav">
-      <div class="container flex items-center justify-between">
+      <div class="container flex center between">
         <router-link to="/" class="brand">
-          <span class="brand-icon">&#x270A;</span>
-          <span class="brand-text">Civic</span>
+          <div class="logo-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-name">Civic</div>
+            <div class="brand-sub">Coordination Platform</div>
+          </div>
         </router-link>
-        <div class="nav-links">
-          <router-link to="/" class="nav-link">Home</router-link>
-        </div>
       </div>
     </nav>
     <main class="main-content">
@@ -24,17 +26,11 @@ const router = useRouter()
 </template>
 
 <style scoped>
-.app-shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
 
 .top-nav {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  padding: 0.75rem 0;
+  background: #171717;
+  padding: 12px 0;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -43,40 +39,23 @@ const router = useRouter()
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 12px;
   text-decoration: none;
 }
 
-.brand-icon {
-  font-size: 1.25rem;
-}
-
-.brand-text {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--accent);
-  letter-spacing: -0.02em;
-}
-
-.nav-links {
+.logo-box {
+  width: 40px;
+  height: 40px;
+  background: var(--indigo);
+  border-radius: 12px;
   display: flex;
-  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.nav-link {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  transition: color var(--transition);
-}
+.brand-name { font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2; }
+.brand-sub { font-size: 12px; color: var(--indigo-sub); line-height: 1.2; }
 
-.nav-link:hover,
-.nav-link.router-link-active {
-  color: var(--text-primary);
-}
-
-.main-content {
-  flex: 1;
-  padding: 2rem 0;
-}
+.main-content { flex: 1; padding: 16px 0 40px; }
 </style>

@@ -2,6 +2,11 @@ node_modules/
 frontend/dist/
 backend/frontend_dist/
 backend/civic-server
+backend/server
 backend/civic.db
 *.db
+*.db-shm
+*.db-wal
+*.zip
+prototype ui/
 .DS_Store

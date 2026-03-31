@@ -28,7 +28,7 @@ export const useEventStore = defineStore('event', () => {
   }
 
   async function fetchEventByCode(code) {
-    const res = await fetch(`/api/events/code/${code}`)
+    const res = await fetch(`/api/join/${code}`)
     if (!res.ok) throw new Error('Event not found')
     const data = await res.json()
     currentEvent.value = data
@@ -36,7 +36,7 @@ export const useEventStore = defineStore('event', () => {
   }
 
   async function joinEvent(eventId, name, role) {
-    const res = await fetch(`/api/events/${eventId}/participants`, {
+    const res = await fetch(`/api/events/${eventId}/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, role }),
@@ -45,11 +45,11 @@ export const useEventStore = defineStore('event', () => {
     return await res.json()
   }
 
-  async function checkIn(participantId, lat, lng) {
-    const res = await fetch(`/api/participants/${participantId}/checkin`, {
+  async function checkIn(participantId, eventId, lat, lng) {
+    const res = await fetch(`/api/events/${eventId}/checkin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ latitude: lat, longitude: lng }),
+      body: JSON.stringify({ participantId, lat, lng }),
     })
     if (!res.ok) throw new Error('Failed to check in')
     return await res.json()
@@ -63,7 +63,6 @@ export const useEventStore = defineStore('event', () => {
     })
     if (!res.ok) throw new Error('Failed to send alert')
     const data = await res.json()
-    alerts.value.unshift(data)
     return data
   }
 
@@ -84,7 +83,6 @@ export const useEventStore = defineStore('event', () => {
   }
 
   function connectSSE(eventId) {
-    // Close existing connection if any
     if (connection.value) {
       connection.value.close()
       connection.value = null
@@ -93,43 +91,29 @@ export const useEventStore = defineStore('event', () => {
     const es = new EventSource(`/api/events/${eventId}/stream`)
     connection.value = es
 
-    es.addEventListener('participant_update', (e) => {
+    // Backend sends generic "message" events with {type, data} payload
+    es.onmessage = (e) => {
       try {
-        const participant = JSON.parse(e.data)
-        const idx = participants.value.findIndex((p) => p.id === participant.id)
-        if (idx >= 0) {
-          participants.value[idx] = participant
-        } else {
-          participants.value.push(participant)
+        const msg = JSON.parse(e.data)
+        if (msg.type === 'participant_joined' || msg.type === 'participant_checkin') {
+          const participant = msg.data
+          const idx = participants.value.findIndex((p) => p.id === participant.id)
+          if (idx >= 0) {
+            participants.value[idx] = participant
+          } else {
+            participants.value.push(participant)
+          }
+        } else if (msg.type === 'alert_created') {
+          const alert = msg.data
+          const exists = alerts.value.some((a) => a.id === alert.id)
+          if (!exists) {
+            alerts.value.unshift(alert)
+          }
         }
       } catch {
         // ignore parse errors
       }
-    })
-
-    es.addEventListener('alert', (e) => {
-      try {
-        const alert = JSON.parse(e.data)
-        const exists = alerts.value.some((a) => a.id === alert.id)
-        if (!exists) {
-          alerts.value.unshift(alert)
-        }
-      } catch {
-        // ignore parse errors
-      }
-    })
-
-    es.addEventListener('checkin', (e) => {
-      try {
-        const data = JSON.parse(e.data)
-        const idx = participants.value.findIndex((p) => p.id === data.participantId || p.id === data.id)
-        if (idx >= 0) {
-          participants.value[idx] = { ...participants.value[idx], ...data, checkedIn: true }
-        }
-      } catch {
-        // ignore parse errors
-      }
-    })
+    }
 
     es.onerror = () => {
       // Auto-reconnect is handled by the browser for SSE

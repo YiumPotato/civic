@@ -93,7 +93,7 @@ func NewHandler(s *store.Store, frontendFS fs.FS) *Handler {
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	// API routes (Go 1.22 method-based routing)
 	mux.HandleFunc("POST /api/events", h.cors(h.createEvent))
-	mux.HandleFunc("GET /api/events/join/{code}", h.cors(h.getEventByJoinCode))
+	mux.HandleFunc("GET /api/join/{code}", h.cors(h.getEventByJoinCode))
 	mux.HandleFunc("GET /api/events/{id}", h.cors(h.getEvent))
 	mux.HandleFunc("POST /api/events/{id}/join", h.cors(h.joinEvent))
 	mux.HandleFunc("POST /api/events/{id}/checkin", h.cors(h.checkIn))
@@ -108,7 +108,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	}))
 
 	// SPA fallback: serve frontend files, fall back to index.html
-	mux.HandleFunc("/", h.serveFrontend)
+	mux.HandleFunc("GET /", h.serveFrontend)
 }
 
 // cors wraps a handler with CORS headers.

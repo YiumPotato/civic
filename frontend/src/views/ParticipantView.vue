@@ -5,7 +5,6 @@ import { useEventStore } from '../stores/event.js'
 
 const route = useRoute()
 const store = useEventStore()
-
 const eventId = route.params.id
 const participantId = route.params.participantId
 
@@ -15,54 +14,44 @@ const checkedIn = ref(false)
 const checkInError = ref('')
 const participant = ref(null)
 
-const roleChecklists = {
+const checklists = {
   participant: [
-    'Know your rights — you have the right to peacefully assemble',
-    'Save the legal hotline number to your phone',
-    'Bring water, snacks, and any necessary medication',
-    'Wear comfortable shoes and weather-appropriate clothing',
+    'Know your rights — right to peacefully assemble',
+    'Save the legal hotline number',
+    'Bring water, snacks, and medication',
     'Have a buddy — never go alone',
     'Keep your phone charged',
   ],
   marshal: [
-    'Arrive early to survey the route and identify hazards',
-    'Wear your high-visibility vest or identifier',
-    'Know the rally route and all exit points',
-    'Carry a charged radio or phone for coordination',
-    'Keep participants within designated areas',
-    'Watch for counter-protesters or agitators',
+    'Arrive early to survey the route',
+    'Wear your high-visibility vest',
+    'Know all exit points',
+    'Keep participants in designated areas',
     'Know the emergency plan and rally point',
   ],
   medic: [
-    'Bring your first aid kit and supplies',
-    'Wear your medic cross identifier clearly',
-    'Carry water for flushing eyes (pepper spray, tear gas)',
-    'Know the nearest hospitals and urgent care locations',
-    'Set up a visible medic station if possible',
-    'Document any injuries with photos (with consent)',
+    'Bring your first aid kit',
+    'Wear your medic cross clearly',
+    'Carry water for flushing eyes',
+    'Know nearest hospitals',
+    'Document injuries with consent',
   ],
   legal_observer: [
-    'Bring a notepad, pens, and a charged camera/phone',
-    'Wear your legal observer identifier (green hat/vest)',
-    'Document police activity, badge numbers, and vehicle IDs',
-    'Record timestamps for all significant events',
-    'Do not participate in the action — observe only',
-    'Know the NLG hotline number by heart',
-    'Collect witness contact info for any incidents',
+    'Bring notepad, pens, charged camera',
+    'Wear legal observer identifier',
+    'Document police activity & badge numbers',
+    'Record timestamps for significant events',
+    'Observe only — do not participate',
   ],
 }
 
-const checklist = computed(() => {
-  const role = participant.value?.role || 'participant'
-  return roleChecklists[role] || roleChecklists.participant
-})
+const checklist = computed(() => checklists[participant.value?.role] || checklists.participant)
 
-function roleLabel(role) {
-  const map = { marshal: 'Marshal', medic: 'Medic', legal_observer: 'Legal Observer', participant: 'Participant' }
-  return map[role] || role
+function roleLabel(r) {
+  return { marshal: 'Marshal', medic: 'Medic', legal_observer: 'Legal Observer', participant: 'Participant' }[r] || r
 }
 
-function formatTime(ts) {
+function time(ts) {
   if (!ts) return ''
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
@@ -72,274 +61,146 @@ async function handleCheckIn() {
   checkInError.value = ''
   try {
     const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-      })
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
     })
-    await store.checkIn(participantId, pos.coords.latitude, pos.coords.longitude)
+    await store.checkIn(participantId, eventId, pos.coords.latitude, pos.coords.longitude)
     checkedIn.value = true
   } catch (e) {
-    if (e.code) {
-      // GeolocationPositionError
-      checkInError.value = 'Location access denied. Please enable location services.'
-    } else {
-      checkInError.value = e.message || 'Check-in failed'
-    }
-  } finally {
-    checkingIn.value = false
-  }
+    checkInError.value = e.code ? 'Location access denied. Enable location services.' : (e.message || 'Check-in failed')
+  } finally { checkingIn.value = false }
 }
 
 onMounted(async () => {
   try {
     await store.fetchEvent(eventId)
-    const participants = await store.fetchParticipants(eventId)
-    participant.value = participants.find((p) => p.id === participantId) || null
-    if (participant.value?.checkedIn) {
-      checkedIn.value = true
-    }
+    const pts = await store.fetchParticipants(eventId)
+    participant.value = pts.find(p => p.id === participantId) || null
+    if (participant.value?.checkedIn) checkedIn.value = true
     await store.fetchAlerts(eventId)
     store.connectSSE(eventId)
-  } catch {
-    // error
-  } finally {
-    loading.value = false
-  }
+  } catch {} finally { loading.value = false }
 })
 
-onUnmounted(() => {
-  store.disconnectSSE()
-})
+onUnmounted(() => store.disconnectSSE())
 </script>
 
 <template>
   <div class="container">
-    <div v-if="loading" class="empty-state">
-      <p>Loading...</p>
-    </div>
+    <div v-if="loading" class="empty"><p>Loading...</p></div>
 
     <template v-else-if="store.currentEvent && participant">
-      <!-- Header -->
-      <div class="participant-header">
-        <div>
-          <p class="text-muted text-sm">You are attending</p>
-          <h1>{{ store.currentEvent.name }}</h1>
-        </div>
-        <div class="role-display">
-          <span :class="`badge badge-${participant.role}`">
-            {{ roleLabel(participant.role) }}
-          </span>
+      <!-- Role header card -->
+      <div class="card card-accent">
+        <div class="flex center gap">
+          <div class="role-icon" :class="`role-icon-${participant.role}`">
+            <span v-if="participant.role==='marshal'" style="font-size:16px">&#128737;</span>
+            <span v-else-if="participant.role==='medic'" style="font-size:16px">&#9764;</span>
+            <span v-else-if="participant.role==='legal_observer'" style="font-size:16px">&#9878;</span>
+            <span v-else style="font-size:16px">&#9734;</span>
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:700">{{ roleLabel(participant.role) }}</div>
+            <div class="indigo-sub small">{{ store.currentEvent.name }}</div>
+          </div>
         </div>
       </div>
 
       <!-- Check-in -->
-      <div class="card mt-2 check-in-card">
-        <div v-if="checkedIn" class="checked-in-status">
-          <span class="check-mark">&#10003;</span>
-          <div>
-            <strong>You are checked in</strong>
-            <p class="text-muted text-sm">Your location has been shared with organizers</p>
-          </div>
+      <div v-if="checkedIn" class="success-banner mt">
+        <div class="success-icon">&#10003;</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--green)">Successfully Checked In</div>
+          <div style="font-size:12px;color:var(--green-light);margin-top:2px">Location shared with organizers</div>
         </div>
-        <div v-else class="check-in-prompt">
-          <div>
-            <strong>Check in to confirm your presence</strong>
-            <p class="text-muted text-sm">This shares your location with event organizers</p>
-          </div>
-          <button
-            class="btn btn-primary"
-            :disabled="checkingIn"
-            @click="handleCheckIn"
-          >
-            {{ checkingIn ? 'Getting location...' : 'Check In' }}
-          </button>
-        </div>
-        <p v-if="checkInError" class="error-text mt-1">{{ checkInError }}</p>
       </div>
 
-      <div class="grid-2 mt-3">
-        <!-- Checklist -->
-        <div class="card">
-          <h3 class="mb-2">{{ roleLabel(participant.role) }} Checklist</h3>
-          <ul class="checklist">
-            <li v-for="(item, i) in checklist" :key="i" class="checklist-item">
-              <input type="checkbox" :id="`check-${i}`" class="checklist-check" />
-              <label :for="`check-${i}`" class="checklist-label">{{ item }}</label>
-            </li>
-          </ul>
+      <button v-else class="btn btn-primary btn-block mt" :disabled="checkingIn" @click="handleCheckIn" style="height:56px;font-size:16px">
+        {{ checkingIn ? 'Getting location...' : 'Check In Now' }}
+      </button>
+      <p v-if="checkInError" class="err mt">{{ checkInError }}</p>
+
+      <!-- Actions -->
+      <div class="flex gap mt">
+        <router-link :to="`/event/${eventId}/map`" class="btn btn-blue" style="flex:1">
+          View Map
+        </router-link>
+        <router-link :to="`/event/${eventId}/dashboard`" class="btn btn-ghost" style="flex:1">
+          Dashboard
+        </router-link>
+      </div>
+
+      <!-- Checklist -->
+      <div class="card mt">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">Pre-Event Readiness</div>
+        <ul class="cklist">
+          <li v-for="(item, i) in checklist" :key="i">
+            <input type="checkbox" :id="`c${i}`" />
+            <label :for="`c${i}`" style="flex:1">{{ item }}</label>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Alerts -->
+      <div class="card mt">
+        <div class="flex between center" style="margin-bottom:12px">
+          <h3>Alerts</h3>
+          <span class="live-tag"><span class="live-dot"></span> Live</span>
         </div>
 
-        <!-- Alerts Feed -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-2">
-            <h3>Alert Feed</h3>
-            <span class="live-indicator">
-              <span class="live-dot"></span>
-              Live
-            </span>
-          </div>
-
-          <div v-if="store.alerts.length === 0" class="empty-state">
-            <p>No alerts yet. Stay tuned.</p>
-          </div>
-
-          <div class="alerts-feed">
-            <div
-              v-for="a in store.alerts"
-              :key="a.id"
-              class="alert-item"
-              :class="`alert-${a.severity}`"
-            >
-              <div class="flex items-center justify-between">
-                <strong class="alert-msg">{{ a.message }}</strong>
-                <span class="text-muted text-sm">{{ formatTime(a.createdAt || a.timestamp) }}</span>
-              </div>
+        <!-- Active emergency banner -->
+        <template v-for="a in store.alerts" :key="'banner-'+a.id">
+          <div v-if="a.severity === 'emergency'" class="alert-banner mb">
+            <div style="width:36px;height:36px;background:var(--yellow);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <span style="color:#0a1628;font-size:16px;font-weight:800">!</span>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--yellow)">EMERGENCY</div>
+              <div style="font-size:12px;color:#fbbf24;margin-top:4px">{{ a.message }}</div>
             </div>
           </div>
+        </template>
 
-          <router-link
-            :to="`/event/${eventId}/map`"
-            class="btn btn-secondary mt-2"
-            style="width: 100%"
-          >
-            Open Live Map
-          </router-link>
+        <div v-if="store.alerts.length === 0" class="dim small" style="text-align:center;padding:16px 0">
+          No alerts yet. Stay tuned.
+        </div>
+
+        <div class="alert-scroll">
+          <div v-for="a in store.alerts" :key="a.id" class="alert-item">
+            <div class="alert-icon" :class="`alert-icon-${a.severity}`">
+              <span v-if="a.severity==='info'" style="color:#fff;font-size:12px">i</span>
+              <span v-else style="color:#fff;font-size:14px;font-weight:800">!</span>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:700">{{ a.message }}</div>
+              <div class="xs dim" style="margin-top:2px">{{ time(a.createdAt) }}</div>
+            </div>
+          </div>
         </div>
       </div>
     </template>
 
-    <div v-else class="empty-state">
-      <h2>Participant not found</h2>
-      <p>
-        <router-link to="/">Go back home</router-link>
-      </p>
+    <div v-else class="empty">
+      <p>Participant not found. <router-link to="/">Go home</router-link></p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.participant-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.role-display {
-  padding-top: 0.25rem;
-}
-
-.role-display .badge {
-  font-size: 0.9rem;
-  padding: 0.4rem 1rem;
-}
-
-.check-in-card {
-  border-color: var(--accent);
-}
-
-.checked-in-status {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.check-mark {
-  width: 48px;
-  height: 48px;
+.role-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--indigo);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  color: #0f172a;
-  border-radius: 50%;
-  font-size: 1.5rem;
-  font-weight: 800;
   flex-shrink: 0;
 }
+.role-icon-marshal { background: var(--blue-bg); }
+.role-icon-medic { background: var(--green-bg); }
+.role-icon-legal_observer { background: var(--orange-bg); }
 
-.check-in-prompt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
+.err { color: var(--red-light); font-size: 12px; }
 
-.error-text {
-  color: var(--severity-emergency);
-  font-size: 0.85rem;
-}
-
-.checklist {
-  list-style: none;
-  padding: 0;
-}
-
-.checklist-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.checklist-item:last-child {
-  border-bottom: none;
-}
-
-.checklist-check {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  accent-color: var(--accent);
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.checklist-label {
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  line-height: 1.4;
-  text-transform: none;
-  font-weight: 400;
-  letter-spacing: 0;
-  margin-bottom: 0;
-}
-
-.live-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-}
-
-.live-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 50%;
-  animation: pulse-live 2s ease-in-out infinite;
-}
-
-@keyframes pulse-live {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.alerts-feed {
-  max-height: 350px;
-  overflow-y: auto;
-}
-
-.alert-msg {
-  font-weight: 500;
-}
+.alert-scroll { max-height: 300px; overflow-y: auto; }
 </style>
