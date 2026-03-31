@@ -47,8 +47,8 @@ func main() {
 	handler.RegisterRoutes(mux)
 
 	// Serve MVP prototype at /mvp
-	mux.Handle("/mvp/", http.StripPrefix("/mvp/", http.FileServerFS(prototypeFS)))
-	mux.HandleFunc("/mvp", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("GET /mvp/", http.StripPrefix("/mvp/", http.FileServerFS(prototypeFS)))
+	mux.HandleFunc("GET /mvp", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/mvp/", http.StatusMovedPermanently)
 	})
 
